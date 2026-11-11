@@ -119,7 +119,7 @@
 
         <div class="group">
           <label class="label command-label" for="command">Command</label>
-          <p class="hint muted" id="commandDesc">This is the command that will be used. It updates as you change the options above. Settings from <code>yt-dlp.conf</code> (download folder, thumbnail, ffmpeg) are applied as well.</p>
+          <p class="hint muted" id="commandDesc">This is the command that will be used. It updates as you change the options above. Settings from <code>yt-dlp.conf</code> (file naming, thumbnail, ffmpeg, and the download folder unless you choose one below) are applied as well.</p>
           <textarea id="command" rows="3" readonly spellcheck="false" aria-describedby="commandDesc"></textarea>
           <p class="error small" id="commandError" hidden></p>
         </div>
@@ -127,6 +127,15 @@
         <p class="error" id="formError" hidden></p>
 
         <div class="actions">
+          <div class="save-to small">
+            <span class="muted">Save to</span>
+            <span id="saveToPath" class="save-to-path">…</span>
+            <button type="button" id="resetFolderBtn" class="link" title="Go back to the default download folder" hidden>Reset</button>
+          </div>
+          <button type="button" id="folderBtn" class="secondary folder-btn" title="Choose download folder">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v8.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/></svg>
+            Change folder
+          </button>
           <button type="submit" id="downloadBtn">Download</button>
         </div>
       </form>

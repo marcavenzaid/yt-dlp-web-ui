@@ -11,8 +11,8 @@ import webbrowser
 from flask import Flask, jsonify, request, send_from_directory
 
 from runner import (
-    Manager, ValidationError, display_command, fetch_info, open_downloads, validate_options,
-    validate_url,
+    Manager, ValidationError, display_command, downloads_dir, fetch_info, open_downloads,
+    pick_folder, saved_download_dir, set_download_dir, validate_options, validate_url,
 )
 
 HOST = "127.0.0.1"  # this PC only
@@ -99,6 +99,33 @@ def open_downloads_folder():
         return jsonify(path=open_downloads())
     except OSError as e:
         return jsonify(error=f"Could not open the downloads folder: {e}"), 500
+
+
+def _download_dir_info():
+    return {"path": str(downloads_dir()), "custom": saved_download_dir() is not None}
+
+
+@app.get("/api/download-dir")
+def get_download_dir():
+    return jsonify(_download_dir_info())
+
+
+@app.post("/api/download-dir/choose")
+def choose_download_dir():
+    """Open the native folder picker; save the choice for future downloads."""
+    try:
+        folder = pick_folder(str(downloads_dir()))
+    except OSError as e:
+        return jsonify(error=str(e)), 500
+    if folder:
+        set_download_dir(folder)
+    return jsonify({**_download_dir_info(), "cancelled": folder is None})
+
+
+@app.delete("/api/download-dir")
+def reset_download_dir():
+    set_download_dir(None)
+    return jsonify(_download_dir_info())
 
 
 @app.post("/api/update")

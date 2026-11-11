@@ -165,7 +165,12 @@ fieldset legend { margin-bottom: 6px; }
 .extras summary .muted { font-weight: 400; }
 .extras summary, details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 
-.actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+.actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 16px; }
+.save-to { flex: 1 1 200px; min-width: 0; display: flex; align-items: baseline; gap: 6px; }
+.save-to-path { font-family: ui-monospace, Consolas, monospace; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.save-to .link { white-space: nowrap; }
+.folder-btn { display: inline-flex; align-items: center; gap: 8px; }
+.folder-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
 .url-actions { margin-top: 8px; }
 .details-panel { margin-top: 12px; padding: 14px; border: 1px solid var(--border); border-radius: 8px; }
 button {
@@ -247,7 +252,8 @@ pre {
 @media (max-width: 560px) {
   .preview { flex-direction: column; }
   .preview img { width: 100%; max-width: 100%; }
-  .actions button { flex: 1; }
+  .actions > button { flex: 1; }
+  .save-to { flex-basis: 100%; }
   .segmented { display: flex; }
   .segmented label { flex: 1; justify-content: center; }
 }

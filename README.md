@@ -40,7 +40,7 @@ ffmpeg isn't in the repository because its binaries are too large for GitHub.
 
 ### 4. Run it
 
-Double-click `start.bat`. The UI opens in your browser at http://127.0.0.1:5000. Downloads are saved to the `Downloads` folder in the project root.
+Double-click `start.bat`. The UI opens in your browser at http://127.0.0.1:5000. Downloads are saved to the `Downloads` folder in the project root. To save them somewhere else, click **Change folder** next to the Download button. Your choice is saved in `settings.json` in the project root and used again the next time. Click **Reset** to go back to the `Downloads` folder.
 
 To update yt-dlp, use the update option in the UI, or run:
 

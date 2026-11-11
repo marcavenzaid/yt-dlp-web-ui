@@ -206,6 +206,49 @@ async function submit(ev) {
   }
 }
 
+// ---------------------------------------------------------- download folder
+
+// The folder is stored by the server (settings.json), not the browser, because
+// the server is what saves the files.
+function showFolder(info) {
+  $("saveToPath").textContent = info.path;
+  $("saveToPath").title = info.path;
+  $("resetFolderBtn").hidden = !info.custom;
+}
+
+async function loadFolder() {
+  try {
+    const { data } = await api("GET", "/api/download-dir");
+    showFolder(data);
+  } catch { $("saveToPath").textContent = "(server offline)"; }
+}
+
+async function chooseFolder() {
+  const btn = $("folderBtn");
+  btn.disabled = true;
+  showError("");
+  try {
+    // Blocks until the folder dialog (opened on this PC by the server) is closed.
+    const { data } = await api("POST", "/api/download-dir/choose");
+    showFolder(data);
+    updateCommand();
+  } catch (e) {
+    showError(e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function resetFolder() {
+  try {
+    const { data } = await api("DELETE", "/api/download-dir");
+    showFolder(data);
+    updateCommand();
+  } catch (e) {
+    showError(e.message);
+  }
+}
+
 // ------------------------------------------------------------------ queue
 
 const STATUS_LABEL = { queued: "Queued", running: "Downloading", done: "Done", error: "Failed", cancelled: "Cancelled" };
@@ -375,6 +418,8 @@ $("previewBtn").addEventListener("click", preview);
 $("clearBtn").addEventListener("click", () => api("DELETE", "/api/jobs/finished").then(refresh));
 $("openDownloadsBtn").addEventListener("click", () =>
   api("POST", "/api/open-downloads").catch((e) => alert(e.message)));
+$("folderBtn").addEventListener("click", chooseFolder);
+$("resetFolderBtn").addEventListener("click", resetFolder);
 $("updateBtn").addEventListener("click", updateYtdlp);
 $("themeBtn").addEventListener("click", toggleTheme);
 $("settingsBtn").addEventListener("click", () => $("settings").showModal());
@@ -396,6 +441,7 @@ applyTheme(document.documentElement.dataset.theme || (darkQuery.matches ? "dark"
 loadSettings();
 showKind();
 updateCommand();
+loadFolder();
 loadVersion();
 refresh();
 setInterval(refresh, 1000);

@@ -91,6 +91,8 @@ def validate_options(data: dict) -> dict:
         "end": end,
         "cookies": cookies,
         "browser": browser if cookies else None,
+        # Captured now, so a queued job keeps the folder it was added with.
+        "folder": saved_download_dir(),
     }
 
 
@@ -126,7 +128,7 @@ def cookie_args(opts: dict) -> list[str]:
 def option_args(opts: dict) -> list[str]:
     """The user-chosen part of the command: format selection, cookies, sections.
     Shared by the real download and the command shown in the UI."""
-    args = preset_args(opts) + cookie_args(opts)
+    args = location_args(opts.get("folder")) + preset_args(opts) + cookie_args(opts)
     if opts["start"] or opts["end"]:
         args += ["--download-sections", f"*{opts['start'] or '0'}-{opts['end'] or 'inf'}"]
     return args
@@ -167,10 +169,41 @@ def download_args(url: str, opts: dict) -> list[str]:
 
 # ---------------------------------------------------------- downloads folder
 
-def downloads_dir() -> Path:
-    """The folder yt-dlp.conf's -o template saves into: the template's directory
-    part up to the first %(field)s, resolved against YTDLP_DIR (yt-dlp's cwd).
-    Falls back to <project>/Downloads if the config has no usable -o line."""
+SETTINGS_FILE = ROOT / "settings.json"  # server-side UI settings (gitignored)
+DEFAULT_TEMPLATE = "%(title)s [%(id)s].%(ext)s"  # yt-dlp's default -o
+
+
+def _load_settings() -> dict:
+    try:
+        data = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _save_settings(settings: dict):
+    tmp = SETTINGS_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(settings, indent=2), encoding="utf-8")
+    tmp.replace(SETTINGS_FILE)
+
+
+def saved_download_dir() -> str | None:
+    """The download folder chosen in the UI, or None to use yt-dlp.conf's."""
+    folder = _load_settings().get("download_dir")
+    return folder if isinstance(folder, str) and os.path.isabs(folder) else None
+
+
+def set_download_dir(folder: str | None):
+    settings = _load_settings()
+    if folder:
+        settings["download_dir"] = os.path.normpath(os.path.abspath(folder))
+    else:
+        settings.pop("download_dir", None)
+    _save_settings(settings)
+
+
+def _conf_template() -> str | None:
+    """The last -o/--output value in yt-dlp.conf (last one wins, like yt-dlp)."""
     template = None
     try:
         lines = CONF.read_text(encoding="utf-8").splitlines()
@@ -186,15 +219,70 @@ def downloads_dir() -> Path:
                 template = tokens[i + 1]  # last one wins, like yt-dlp
             elif tok.startswith("--output="):
                 template = tok.split("=", 1)[1]
+    return template
+
+
+def _split_template(template: str) -> tuple[Path, str]:
+    """Split an output template into its fixed folder (everything before the first
+    %(field)s path part) and the rest, e.g. "../Downloads/%(title)s.%(ext)s" ->
+    (Path("../Downloads"), "%(title)s.%(ext)s")."""
+    parts = Path(template).parts
+    i = next((n for n, p in enumerate(parts[:-1]) if "%(" in p), len(parts) - 1)
+    folder = Path(*parts[:i]) if i else Path(".")
+    return folder, "/".join(parts[i:])
+
+
+def location_args(folder: str | None) -> list[str]:
+    """Send downloads to a chosen folder: -P sets it, -o keeps the config's file naming."""
+    if not folder:
+        return []
+    _, name = _split_template(_conf_template() or DEFAULT_TEMPLATE)
+    return ["-P", folder, "-o", name]
+
+
+def downloads_dir() -> Path:
+    """Where downloads are saved: the folder chosen in the UI if any, otherwise the
+    folder yt-dlp.conf's -o template saves into (resolved against YTDLP_DIR,
+    yt-dlp's cwd), or <project>/Downloads if the config has no usable -o line."""
+    if folder := saved_download_dir():
+        return Path(folder)
+    template = _conf_template()
     if not template:
         return ROOT / "Downloads"
-    parts = []
-    for part in Path(template).parent.parts:
-        if "%(" in part:
-            break
-        parts.append(part)
-    folder = Path(*parts) if parts else Path(".")
+    folder, _ = _split_template(template)
     return (YTDLP_DIR / folder).resolve()
+
+
+_PICK_FOLDER_SCRIPT = r"""
+import sys, tkinter as tk
+from tkinter import filedialog
+root = tk.Tk()
+root.withdraw()
+root.attributes("-topmost", True)  # don't open behind the browser
+path = filedialog.askdirectory(parent=root, title="Choose download folder",
+                               initialdir=sys.argv[1] or None, mustexist=True)
+sys.stdout.write(path or "")
+"""
+_picker_lock = threading.Lock()
+
+
+def pick_folder(initial: str) -> str | None:
+    """Show the native folder picker on this PC. Returns the folder, or None if
+    the user cancelled. Runs Tk in a child process so it never touches Flask's threads."""
+    if not _picker_lock.acquire(blocking=False):
+        raise ValidationError("The folder picker is already open.")
+    try:
+        out = subprocess.run(
+            [sys.executable, "-I", "-c", _PICK_FOLDER_SCRIPT, initial], env=CHILD_ENV,
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+        )
+    finally:
+        _picker_lock.release()
+    if out.returncode != 0:
+        detail = (out.stderr.strip().splitlines() or ["unknown error"])[-1]
+        raise OSError(f"Could not open the folder picker: {detail}")
+    path = out.stdout.strip()
+    return os.path.normpath(path) if path else None
 
 
 def open_downloads() -> str:
