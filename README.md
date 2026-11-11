@@ -2,6 +2,8 @@
 
 A local Flask web interface for [yt-dlp](https://github.com/yt-dlp/yt-dlp), served at http://127.0.0.1:5000. Run `start.bat` to launch it.
 
+![screenshot.png](README_assets/screenshot.png)
+
 ## Setup
 
 These steps are for Windows. `start.bat` and the app expect the virtual environment at `venv\Scripts\python.exe`.
