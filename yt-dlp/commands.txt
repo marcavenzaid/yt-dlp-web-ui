@@ -1,0 +1,44 @@
+These are the commands I used on the command-line before I made the webapp.
+
+===================================================
+https://github.com/yt-dlp/yt-dlp
+
+Make sure that the ffmpeg and yt-dlp.conf is in the same folder.
+---------------------------------------------------
+To update.
+  pip install -U "yt-dlp[default]"
+
+Configurations location.
+  yt-dlp.conf file is the configuration and it is located in the same directory as this README.
+
+List available formats
+	--list-formats
+
+For downloading sections.
+  --download-sections "*00:58-04:51"
+	
+For downloading Membership videos.
+  --cookies-from-browser firefox
+---------------------------------------------------
+$quality=1080; yt-dlp -f "bv*[height<=$quality]+ba[format_note*=original]/bv*[height<=$quality]+ba/b[height<=$quality]" -S "res,fps,br,ext:mp4:m4a" URL
+
+	- $quality=1080;: Sets the maximum resolution once. Change this one number to change the quality.
+	- bv*[height<=$quality]: Picks the best video at or below that resolution.
+	- +ba[format_note*=original]: Combines it with the original-language audio track, so you don’t get a dub.
+	- -S "res,fps,br,ext:mp4:m4a": Prefers the highest resolution, then frame rate, then bitrate, then mp4 video with m4a audio.
+	- /bv*[height<=$quality]+ba/b[height<=$quality]: Fallbacks. If there's no "original" track, it uses the best audio. If separate streams aren’t available, it uses a single combined file at or below that resolution.
+
+yt-dlp -f "bv*+ba[format_note*=original]/bv*+ba/b" -S "res,fps,br,ext:mp4:m4a" URL
+
+  - bv*: Picks the best video with no resolution limit.
+	- +ba[format_note*=original]: Combines it with the original-language audio track, so you don’t get a dub.
+	- -S "res,fps,br,ext:mp4:m4a": Prefers the highest resolution, then frame rate, then bitrate, then mp4 video with m4a audio.
+	- /bv*+ba/b: Fallbacks. If there’s no “original” track, it uses the best audio. If separate streams aren’t available, it uses the best single combined file.
+---------------------------------------------------
+yt-dlp --extract-audio -f "ba[ext=m4a][format_note*=original]/ba[format_note*=original]/ba[ext=m4a]/ba/b[acodec!=none]" -S "abr,acodec:mp4a" URL
+
+	- --extract-audio: Downloads audio only and keeps the original file format, with no re-encoding.
+	- [format_note*=original]: Prefers the original-language track, so you don’t get a dub.
+	- [ext=m4a]: Prefers m4a when it’s available.
+	- -S "abr,acodec:mp4a": Picks the highest-quality audio, choosing AAC when bitrates are tied.
+	- /ba/b[acodec!=none]: Fallbacks. If there’s no “original” track or no m4a, it takes the next best audio so the download still works.

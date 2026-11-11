@@ -1,0 +1,30 @@
+# Python virtual environment
+venv/
+.venv/
+
+# Python bytecode / caches
+__pycache__/
+*.py[cod]
+
+# Downloaded media
+Downloads/
+
+# ffmpeg build (binaries exceed GitHub's 100 MB file limit; download separately)
+yt-dlp/ffmpeg-*/
+
+# yt-dlp leftovers and anything that could contain account credentials
+*.part
+*.ytdl
+*.temp
+cookies*.txt
+
+# Logs
+*.log
+
+# Editor / OS files
+.vscode/
+.idea/
+.claude/settings.local.json
+Thumbs.db
+desktop.ini
+.DS_Store
