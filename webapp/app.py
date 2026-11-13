@@ -12,7 +12,7 @@ from flask import Flask, jsonify, request, send_from_directory
 
 from runner import (
     Manager, ValidationError, display_command, downloads_dir, fetch_info, open_downloads,
-    pick_folder, saved_download_dir, set_download_dir, validate_options, validate_url,
+    pick_folder, read_config, saved_download_dir, set_download_dir, validate_options, validate_url,
 )
 
 HOST = "127.0.0.1"  # this PC only
@@ -61,7 +61,13 @@ def command():
     """The yt-dlp command the current form options would run (display only)."""
     data = request.get_json(force=True) or {}
     urls = [u.strip() for u in data.get("urls") or [] if isinstance(u, str) and u.strip()]
-    return jsonify(command=display_command(urls, validate_options(data)))
+    return jsonify(commands=display_command(urls, validate_options(data)))
+
+
+@app.get("/api/config")
+def config():
+    """yt-dlp.conf's contents (display only), loaded by every download."""
+    return jsonify(read_config())
 
 
 @app.post("/api/jobs")

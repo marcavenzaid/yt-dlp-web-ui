@@ -127,23 +127,41 @@ def cookie_args(opts: dict) -> list[str]:
 
 def option_args(opts: dict) -> list[str]:
     """The user-chosen part of the command: format selection, cookies, sections.
-    Shared by the real download and the command shown in the UI."""
-    args = location_args(opts.get("folder")) + preset_args(opts) + cookie_args(opts)
+    (The download folder, -P/-o, is added separately by _download_parts.)"""
+    args = preset_args(opts) + cookie_args(opts)
     if opts["start"] or opts["end"]:
         args += ["--download-sections", f"*{opts['start'] or '0'}-{opts['end'] or 'inf'}"]
     return args
 
 
-_SAFE_ARG = re.compile(r"^[\w@%+=:./-]+$")
+_SAFE_ARG = re.compile(r"^[\w%+=:./-]+$")
 
 
 def _quote(arg: str) -> str:
-    return arg if _SAFE_ARG.match(arg) else '"' + arg.replace('"', '\\"') + '"'
+    """PowerShell quoting: single quotes are literal (no $ or ` expansion)."""
+    return arg if _SAFE_ARG.match(arg) else "'" + arg.replace("'", "''") + "'"
 
 
-def display_command(urls: list[str], opts: dict) -> str:
-    """The command as you'd type it in a terminal (from the yt-dlp folder)."""
-    return " ".join(_quote(a) for a in ["yt-dlp", *option_args(opts), *(urls or ["URL"])])
+def display_command(urls: list[str], opts: dict) -> list:
+    """The exact command(s) a download runs, written as PowerShell: one option per
+    line (each with its value), lines joined by the ` continuation by the page.
+    Each URL is its own job, so several URLs give several commands.
+
+    Returns commands -> lines -> [text, extra] segments, where extra marks the
+    launcher, config and output plumbing (shown dimmed) as opposed to the
+    download options chosen in the form."""
+    commands = []
+    for url in urls or ["URL"]:
+        (python, _), (m, _), (module, _), *parts = _download_parts(url, opts)  # python -m yt_dlp ...
+        lines = [[["&", True], [_quote(python), True], [m, True], [module, True]]]  # & runs a quoted path
+        for arg, extra in parts:
+            seg = [_quote(arg), extra]
+            if arg.startswith("-"):
+                lines.append([seg])
+            else:
+                lines[-1].append(seg)
+        commands.append(lines)
+    return commands
 
 
 PROGRESS_FIELDS = (
@@ -155,16 +173,33 @@ PROGRESS_TAG = "[[P]]"
 FILE_TAG = "[[F]]"
 
 
-def download_args(url: str, opts: dict) -> list[str]:
-    args = base_args() + option_args(opts)
+def output_args() -> list[str]:
+    """Machine-readable progress and the final file path, for the web UI only.
+    They change what yt-dlp prints, not what it downloads."""
     template = PROGRESS_TAG + "|".join(f"%({f})s" for f in PROGRESS_FIELDS)
-    args += [
+    return [
         "--newline", "--progress", "--no-quiet",
         "--progress-template", f"download:{template}",
         "--print", f"after_move:{FILE_TAG}%(filepath)s",
-        "--", url,
     ]
-    return args
+
+
+def _download_parts(url: str, opts: dict) -> list[tuple[str, bool]]:
+    """Every argument of a download, tagged True for plumbing (launcher, config,
+    download folder -P/-o, output, the -- separator) or False for the format,
+    cookie and section options and the URL. Shown dimmed vs. normal in the UI.
+    The single source for both the real run and the command shown in the UI."""
+    return (
+        [(a, True) for a in base_args()]
+        + [(a, True) for a in location_args(opts.get("folder"))]
+        + [(a, False) for a in option_args(opts)]
+        + [(a, True) for a in output_args()]
+        + [("--", True), (url, False)]
+    )
+
+
+def download_args(url: str, opts: dict) -> list[str]:
+    return [arg for arg, _ in _download_parts(url, opts)]
 
 
 # ---------------------------------------------------------- downloads folder
@@ -200,6 +235,14 @@ def set_download_dir(folder: str | None):
     else:
         settings.pop("download_dir", None)
     _save_settings(settings)
+
+
+def read_config() -> dict:
+    """yt-dlp.conf as yt-dlp will read it on the next download."""
+    try:
+        return {"path": str(CONF), "text": CONF.read_text(encoding="utf-8")}
+    except OSError as e:
+        return {"path": str(CONF), "text": None, "error": f"Could not read yt-dlp.conf: {e}"}
 
 
 def _conf_template() -> str | None:

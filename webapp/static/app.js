@@ -107,6 +107,36 @@ function showKind() {
   $("videoOpts").hidden = audio;
 }
 
+// Grow a read-only box to show all its lines. scrollHeight is the content
+// height; offsetHeight - clientHeight adds the borders and, when long lines
+// overflow sideways, the horizontal scrollbar, so no vertical one is needed.
+function fitHeight(box) {
+  box.style.height = "auto";
+  box.style.height = `${box.scrollHeight + box.offsetHeight - box.clientHeight}px`;
+}
+
+// commands -> lines -> [text, extra] segments. Extra segments (launcher, config,
+// output flags) are dimmed; the download options from the form stay prominent.
+// Lines end with PowerShell's ` continuation; commands are separated by a blank line.
+function renderCommand(commands) {
+  const nodes = [];
+  commands.forEach((lines, c) => {
+    if (c) nodes.push("\n\n");
+    lines.forEach((segs, l) => {
+      if (l) nodes.push("\n  ");
+      segs.forEach(([text, extra], s) => {
+        if (s) nodes.push(" ");
+        nodes.push(extra ? el("span", { className: "extra" }, text) : text);
+      });
+      if (l < lines.length - 1) {
+        const lineExtra = segs[segs.length - 1][1];  // match the line's colour
+        nodes.push(lineExtra ? el("span", { className: "extra" }, " `") : " `");
+      }
+    });
+  });
+  $("command").replaceChildren(...nodes);
+}
+
 // The command box is built by the server from the same code that runs downloads.
 let commandSeq = 0;
 let commandTimer = 0;
@@ -120,13 +150,29 @@ async function updateCommand() {
     const { ok, data } = await api("POST", "/api/command", { urls: urls(), ...options() });
     if (seq !== commandSeq) return;           // a newer request is in flight
     if (!ok) throw new Error("Could not build the command. The server may be outdated, so restart it (start.bat).");
-    $("command").value = data.command;
+    renderCommand(data.commands);
     $("commandError").hidden = true;
   } catch (e) {
     if (seq !== commandSeq) return;
     // Keep the last valid command visible; explain what's wrong under it.
     $("commandError").textContent = e.message;
     $("commandError").hidden = false;
+  }
+}
+
+// yt-dlp.conf is read by yt-dlp on every run; show its current contents.
+async function loadConf() {
+  try {
+    const { ok, data } = await api("GET", "/api/config");
+    if (!ok) throw new Error("Could not load yt-dlp.conf. The server may be outdated, so restart it (start.bat).");
+    if (data.error) throw new Error(data.error);
+    $("conf").title = data.path;
+    $("conf").value = data.text;
+    fitHeight($("conf"));
+    $("confError").hidden = true;
+  } catch (e) {
+    $("confError").textContent = e.message;
+    $("confError").hidden = false;
   }
 }
 
@@ -441,6 +487,17 @@ applyTheme(document.documentElement.dataset.theme || (darkQuery.matches ? "dark"
 loadSettings();
 showKind();
 updateCommand();
+loadConf();
+window.addEventListener("focus", loadConf);  // pick up edits made to the file meanwhile
+// A width change can add or remove the horizontal scrollbar, so re-fit.
+window.addEventListener("resize", () => fitHeight($("conf")));
+// Collapsible Command section: remember open/closed per browser. A collapsed box
+// can't be measured, so re-fit the conf box when the section opens.
+try { $("commandSection").open = localStorage.getItem("commandOpen") === "1"; } catch { /* storage blocked */ }
+$("commandSection").addEventListener("toggle", () => {
+  try { localStorage.setItem("commandOpen", $("commandSection").open ? "1" : "0"); } catch { /* storage blocked */ }
+  if ($("commandSection").open) fitHeight($("conf"));
+});
 loadFolder();
 loadVersion();
 refresh();

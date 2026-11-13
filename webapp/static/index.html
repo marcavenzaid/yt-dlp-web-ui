@@ -84,18 +84,18 @@
 
         <fieldset class="group options" id="videoOpts" hidden>
           <legend class="label">Video options</legend>
-          <label class="pill"><input type="radio" name="videoPreset" value="video" checked> Up to
+          <label class="pill"><input type="radio" name="videoPreset" value="video" checked>
             <select id="quality" aria-label="Max quality">
-              <option>360</option><option>480</option><option>720</option>
-              <option selected>1080</option><option>1440</option><option>2160</option>
-            </select>p
+              <option value="360">360p</option><option value="480">480p</option><option value="720">720p</option>
+              <option value="1080" selected>1080p</option><option value="1440">1440p</option><option value="2160">2160p</option>
+            </select> or lower if unavailable
           </label>
           <label class="pill"><input type="radio" name="videoPreset" value="best"> Best available</label>
-          <p class="hint muted">Best video at or below the chosen resolution, merged with the original-language audio; mp4/m4a preferred.</p>
+          <p class="hint muted">Original-language audio, highest frame rate and bitrate, mp4 preferred, streams merged without re-encoding.</p>
         </fieldset>
 
         <details class="extras">
-          <summary>Advanced <span class="muted">- sections &amp; cookies</span></summary>
+          <summary>Advanced</summary>
           <div class="row">
             <div class="field">
               <label class="label" for="start">Section start</label>
@@ -105,7 +105,7 @@
               <label class="label" for="end">Section end</label>
               <input id="end" placeholder="4:51" inputmode="numeric">
             </div>
-            <p class="hint field-hint muted">Leave both empty for the whole video. Formats: <code>58</code>, <code>0:58</code>, <code>1:04:51</code>.</p>
+            <p class="hint field-hint muted">Leave both empty for the whole video.</p>
           </div>
           <div class="row">
             <label class="check"><input type="checkbox" id="cookies"> Use cookies from</label>
@@ -117,12 +117,23 @@
           </div>
         </details>
 
+        <details class="extras" id="commandSection">
+        <summary>Command</summary>
+
         <div class="group">
-          <label class="label command-label" for="command">Command</label>
-          <p class="hint muted" id="commandDesc">This is the command that will be used. It updates as you change the options above. Settings from <code>yt-dlp.conf</code> (file naming, thumbnail, ffmpeg, and the download folder unless you choose one below) are applied as well.</p>
-          <textarea id="command" rows="3" readonly spellcheck="false" aria-describedby="commandDesc"></textarea>
+          <span class="label command-label" id="commandLabel">Command</span>
+          <p class="hint muted" id="commandDesc">This is the exact command the app runs (inside the <code>yt-dlp</code> folder), one per URL. It updates as you change the options above. Settings from <code>yt-dlp.conf</code> are applied as well.</p>
+          <pre id="command" tabindex="0" aria-labelledby="commandLabel" aria-describedby="commandDesc"></pre>
           <p class="error small" id="commandError" hidden></p>
         </div>
+
+        <div class="group">
+          <label class="label command-label" for="conf">yt-dlp.conf</label>
+          <p class="hint muted" id="confDesc">Loaded by the command above through <code>--config-locations</code>. Edit the file to change these settings.</p>
+          <textarea id="conf" rows="3" readonly spellcheck="false" aria-describedby="confDesc"></textarea>
+          <p class="error small" id="confError" hidden></p>
+        </div>
+        </details>
 
         <p class="error" id="formError" hidden></p>
 
